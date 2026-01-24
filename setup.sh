@@ -104,6 +104,14 @@ setup_shell() {
     if [[ -f "$zshrc" ]]; then
         sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$zshrc"
         grep -q "zsh-autosuggestions" "$zshrc" || sed -i 's/^plugins=(/plugins=(zsh-autosuggestions zsh-syntax-highlighting /' "$zshrc"
+        # Minimal p10k config: remove user, hostname, time
+        grep -q "POWERLEVEL9K_LEFT_PROMPT_ELEMENTS" "$zshrc" || run_as_user "cat >> $zshrc" << 'EOF'
+
+# p10k minimal config
+POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(dir vcs)
+POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time)
+POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
+EOF
     fi
 
     chsh -s /bin/zsh "$TARGET_USER" 2>/dev/null || true
