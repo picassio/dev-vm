@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # VM Setup Script - Installs mise, languages, tools, coding agents
 # Usage: curl -fsSL <url>/setup.sh | sudo bash
+# Update: sudo bash setup.sh --update
 
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -13,6 +14,14 @@ NC='\033[0m'
 
 TARGET_USER="${TARGET_USER:-ubuntu}"
 TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
+UPDATE_MODE="${UPDATE_MODE:-false}"
+
+# Parse args
+for arg in "$@"; do
+    case $arg in
+        --update) UPDATE_MODE=true ;;
+    esac
+done
 
 log_step() { echo -e "${BLUE}[*]${NC} $1"; }
 log_ok() { echo -e "${GREEN}[✓]${NC} $1"; }
@@ -111,11 +120,36 @@ setup_shell() {
 POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(dir vcs)
 POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time)
 POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
+
+# zoxide (smart cd)
+eval "$(zoxide init zsh)"
+
+# fzf keybindings and completion
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+eval "$(fzf --zsh 2>/dev/null)" || true
+
+# direnv hook
+eval "$(direnv hook zsh)"
 EOF
     fi
 
     chsh -s /bin/zsh "$TARGET_USER" 2>/dev/null || true
     log_ok "Shell setup complete"
+}
+
+setup_git() {
+    log_step "Configuring git..."
+
+    # Prefer HTTPS over SSH for GitHub
+    run_as_user "git config --global url.'https://github.com/'.insteadOf 'git@github.com:'"
+    run_as_user "git config --global url.'https://github.com/'.insteadOf 'ssh://git@github.com/'"
+    log_detail "Set HTTPS as default for GitHub"
+
+    # Basic git config
+    run_as_user "git config --global init.defaultBranch main"
+    run_as_user "git config --global pull.rebase false"
+
+    log_ok "Git configured"
 }
 
 install_mise() {
@@ -131,7 +165,20 @@ install_mise() {
     local bashrc="$TARGET_HOME/.bashrc"
     grep -q 'mise activate bash' "$bashrc" 2>/dev/null || {
         log_detail "Registering mise in bash"
-        run_as_user "echo -e '\n# mise\neval \"\$(\$HOME/.local/bin/mise activate bash)\"' >> $bashrc"
+        run_as_user "cat >> $bashrc" << 'EOF'
+
+# mise
+eval "$($HOME/.local/bin/mise activate bash)"
+
+# zoxide (smart cd)
+eval "$(zoxide init bash)"
+
+# fzf keybindings
+eval "$(fzf --bash 2>/dev/null)" || true
+
+# direnv hook
+eval "$(direnv hook bash)"
+EOF
     }
 
     local zshrc="$TARGET_HOME/.zshrc"
@@ -151,12 +198,24 @@ install_via_mise() {
 
     local mise_bin="$TARGET_HOME/.local/bin/mise"
 
+    # Update mise itself if in update mode
+    if [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Updating mise"
+        run_as_user "$mise_bin self-update" 2>/dev/null || true
+    fi
+
     local languages=("node@lts" "bun@latest" "go@latest" "rust@stable" "python@3.12")
     for tool in "${languages[@]}"; do
         local name="${tool%%@*}"
         log_detail "Installing $name"
         run_as_user "$mise_bin use --global $tool" 2>/dev/null && log_ok "$name" || log_warn "$name failed"
     done
+
+    # Upgrade all tools if in update mode
+    if [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Upgrading all mise tools"
+        run_as_user "$mise_bin upgrade" 2>/dev/null || true
+    fi
 
     local cli_tools=("ripgrep@latest" "fd@latest" "bat@latest" "eza@latest" "zoxide@latest" "fzf@latest"
         "jq@latest" "yq@latest" "delta@latest" "lazygit@latest" "dust@latest" "duf@latest"
@@ -187,21 +246,62 @@ install_agents() {
         return 0
     fi
 
-    [[ ! -x "$TARGET_HOME/.local/bin/claude" ]] && {
-        log_detail "Installing Claude Code"
+    # Claude Code
+    if [[ ! -x "$TARGET_HOME/.local/bin/claude" ]] || [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Installing/updating Claude Code"
         run_as_user "curl -fsSL https://claude.ai/install.sh | bash" 2>/dev/null || \
         run_as_user "$bun_bin install -g --trust @anthropic-ai/claude-code@latest" 2>/dev/null || \
         log_warn "Claude Code failed"
-    }
+    fi
     [[ -x "$TARGET_HOME/.local/bin/claude" ]] && log_ok "Claude Code"
 
-    log_detail "Installing Codex CLI"
-    run_as_user "$bun_bin install -g --trust @openai/codex@latest" 2>/dev/null || log_warn "Codex failed"
+    # Codex
+    if [[ ! -x "$TARGET_HOME/.local/bin/codex" ]] || [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Installing/updating Codex CLI"
+        run_as_user "$bun_bin install -g --trust @openai/codex@latest" 2>/dev/null || log_warn "Codex failed"
+    fi
+    [[ -x "$TARGET_HOME/.local/bin/codex" ]] && log_ok "Codex CLI"
 
-    log_detail "Installing Gemini CLI"
-    run_as_user "$bun_bin install -g --trust @google/gemini-cli@latest" 2>/dev/null || log_warn "Gemini failed"
+    # Gemini
+    if [[ ! -x "$TARGET_HOME/.local/bin/gemini" ]] || [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Installing/updating Gemini CLI"
+        run_as_user "$bun_bin install -g --trust @google/gemini-cli@latest" 2>/dev/null || log_warn "Gemini failed"
+    fi
+    [[ -x "$TARGET_HOME/.local/bin/gemini" ]] && log_ok "Gemini CLI"
 
     log_ok "Coding agents installed"
+}
+
+install_cc_switch() {
+    log_step "Installing cc-switch-cli..."
+
+    local cc_switch_bin="$TARGET_HOME/.local/bin/cc-switch"
+
+    if [[ -x "$cc_switch_bin" ]] && [[ "$UPDATE_MODE" != "true" ]]; then
+        log_ok "cc-switch already installed"
+        return 0
+    fi
+
+    log_detail "Downloading cc-switch-cli"
+    local tmp_dir=$(mktemp -d)
+    local arch=$(uname -m)
+    local variant="linux-x64-musl"
+    [[ "$arch" == "aarch64" ]] && variant="linux-arm64-musl"
+
+    # Get latest release
+    local latest_url=$(curl -sL https://api.github.com/repos/SaladDay/cc-switch-cli/releases/latest | grep "browser_download_url.*${variant}.tar.gz" | cut -d '"' -f 4)
+
+    if [[ -n "$latest_url" ]]; then
+        curl -fsSL "$latest_url" -o "$tmp_dir/cc-switch.tar.gz"
+        tar -xzf "$tmp_dir/cc-switch.tar.gz" -C "$tmp_dir"
+        install -m 755 "$tmp_dir/cc-switch" "$TARGET_HOME/.local/bin/"
+        chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local/bin/cc-switch"
+        rm -rf "$tmp_dir"
+        log_ok "cc-switch installed"
+    else
+        log_warn "cc-switch download failed"
+        rm -rf "$tmp_dir"
+    fi
 }
 
 install_github_cli() {
@@ -223,7 +323,11 @@ install_github_cli() {
 main() {
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
+    if [[ "$UPDATE_MODE" == "true" ]]; then
+    echo "║  VM Setup - UPDATE MODE                                       ║"
+    else
     echo "║  VM Setup - mise, languages, tools, coding agents             ║"
+    fi
     echo "╚═══════════════════════════════════════════════════════════════╝"
     echo ""
 
@@ -234,9 +338,11 @@ main() {
     setup_system
     install_base_packages
     setup_shell
+    setup_git
     install_mise
     install_via_mise
     install_agents
+    install_cc_switch
     install_github_cli
 
     local duration=$(($(date +%s) - start_time))

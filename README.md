@@ -73,6 +73,9 @@ sudo bash setup.sh
 | **Powerlevel10k** | Fast, customizable prompt theme |
 | **zsh-autosuggestions** | Fish-like autosuggestions |
 | **zsh-syntax-highlighting** | Syntax highlighting for commands |
+| **zoxide** | Smart cd with frecency (use `z` command) |
+| **fzf** | Fuzzy finder keybindings (Ctrl+R, Ctrl+T) |
+| **direnv** | Auto-load .envrc files when entering directories |
 
 ### Phase 4: Mise (Runtime Manager)
 
@@ -126,6 +129,7 @@ Also installed separately:
 | **Claude Code** | `claude` | Anthropic's AI coding assistant |
 | **Codex CLI** | `codex` | OpenAI's coding assistant |
 | **Gemini CLI** | `gemini` | Google's AI assistant |
+| **cc-switch** | `cc-switch` | Multi-agent config manager (Claude/Codex/Gemini) |
 
 ### Phase 8: GitHub CLI
 
@@ -141,6 +145,19 @@ Also installed separately:
 # Run on fresh Ubuntu VM
 sudo bash setup.sh
 ```
+
+### Update Existing Installation
+
+```bash
+# Update all tools to latest versions
+sudo bash setup.sh --update
+```
+
+This will:
+- Update mise itself
+- Upgrade all mise-managed tools (node, bun, go, rust, python, CLI tools)
+- Update coding agents (claude, codex, gemini)
+- Update cc-switch-cli
 
 ### Custom User
 
@@ -220,6 +237,12 @@ codex --help
 gemini                    # Start interactive mode
 gemini "help me debug"
 gemini --help
+
+# cc-switch (Multi-agent manager)
+cc-switch                 # Interactive TUI
+cc-switch --help          # Show all commands
+cc-switch sync            # Sync configs across agents
+cc-switch mcp             # Manage MCP servers
 ```
 
 ### Using CLI Tools
