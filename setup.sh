@@ -121,6 +121,9 @@ POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(dir vcs)
 POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time)
 POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
 
+# PATH for local binaries
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
+
 # zoxide (smart cd)
 eval "$(zoxide init zsh)"
 
@@ -166,6 +169,9 @@ install_mise() {
     grep -q 'mise activate bash' "$bashrc" 2>/dev/null || {
         log_detail "Registering mise in bash"
         run_as_user "cat >> $bashrc" << 'EOF'
+
+# PATH for local binaries
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
 
 # mise
 eval "$($HOME/.local/bin/mise activate bash)"
