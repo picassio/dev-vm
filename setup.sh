@@ -56,6 +56,57 @@ setup_system() {
     log_ok "System setup complete"
 }
 
+setup_system_limits() {
+    log_step "Configuring system limits..."
+
+    # Kernel parameters for Redis, databases, and high-performance apps
+    local sysctl_conf="/etc/sysctl.d/99-custom.conf"
+    if [[ ! -f "$sysctl_conf" ]]; then
+        log_detail "Setting kernel parameters"
+        cat > "$sysctl_conf" << 'EOF'
+# Memory overcommit (required for Redis background saving)
+vm.overcommit_memory = 1
+
+# Increase socket backlog for high connections
+net.core.somaxconn = 65535
+net.core.netdev_max_backlog = 65535
+
+# Increase file descriptors
+fs.file-max = 2097152
+
+# Network tuning
+net.ipv4.tcp_max_syn_backlog = 65535
+net.ipv4.ip_local_port_range = 1024 65535
+net.ipv4.tcp_tw_reuse = 1
+EOF
+        sysctl -p "$sysctl_conf" 2>/dev/null || true
+    fi
+
+    # Increase ulimits for ubuntu user
+    local limits_conf="/etc/security/limits.d/99-custom.conf"
+    if [[ ! -f "$limits_conf" ]]; then
+        log_detail "Setting user limits"
+        cat > "$limits_conf" << EOF
+$TARGET_USER soft nofile 65535
+$TARGET_USER hard nofile 65535
+$TARGET_USER soft nproc 65535
+$TARGET_USER hard nproc 65535
+EOF
+    fi
+
+    # Disable transparent huge pages (recommended for Redis/MongoDB)
+    if [[ -f /sys/kernel/mm/transparent_hugepage/enabled ]]; then
+        echo never > /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null || true
+        echo never > /sys/kernel/mm/transparent_hugepage/defrag 2>/dev/null || true
+        # Make persistent via rc.local or systemd
+        grep -q "transparent_hugepage" /etc/rc.local 2>/dev/null || {
+            echo 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' >> /etc/rc.local 2>/dev/null || true
+        }
+    fi
+
+    log_ok "System limits configured"
+}
+
 install_base_packages() {
     log_step "Installing base packages..."
 
@@ -360,6 +411,7 @@ main() {
     local start_time=$(date +%s)
 
     setup_system
+    setup_system_limits
     install_base_packages
     setup_shell
     setup_git
