@@ -81,6 +81,23 @@ install_base_packages() {
         docker compose version &>/dev/null || apt-get install -y docker-compose-plugin 2>/dev/null || true
     fi
 
+    # Configure Docker log limits (100MB max per container)
+    local docker_config="/etc/docker/daemon.json"
+    if [[ ! -f "$docker_config" ]] || ! grep -q "max-size" "$docker_config" 2>/dev/null; then
+        log_detail "Setting Docker log limit to 100MB"
+        mkdir -p /etc/docker
+        cat > "$docker_config" << 'DOCKEREOF'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  }
+}
+DOCKEREOF
+        systemctl restart docker 2>/dev/null || true
+    fi
+
     log_ok "Base packages installed"
 }
 
