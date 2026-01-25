@@ -130,6 +130,7 @@ Also installed separately:
 | **Codex CLI** | `codex` | OpenAI's coding assistant |
 | **Gemini CLI** | `gemini` | Google's AI assistant |
 | **PI Agent** | `pi` | Terminal coding agent with multi-model support |
+| **Beads** | `bd` | Git-backed task tracker for AI agents |
 | **cc-switch** | `cc-switch` | Multi-agent config manager (Claude/Codex/Gemini) |
 
 ### Phase 8: GitHub CLI
@@ -244,6 +245,14 @@ pi                        # Start interactive mode
 pi "explain this code"
 pi --model claude-sonnet  # Use specific model
 pi --help
+
+# Beads (Task tracker for AI agents)
+bd init                   # Initialize in repo
+bd create "Task title"    # Create new task
+bd ready                  # List unblocked tasks
+bd list                   # List all tasks
+bd show bd-a1b2           # Show task details
+bd done bd-a1b2           # Mark task complete
 
 # cc-switch (Multi-agent manager)
 cc-switch                 # Interactive TUI

@@ -392,6 +392,32 @@ install_pi_agent() {
     fi
 }
 
+install_beads() {
+    log_step "Installing beads (task tracker for AI agents)..."
+
+    local mise_bin="$TARGET_HOME/.local/bin/mise"
+    if [[ ! -x "$mise_bin" ]]; then
+        log_warn "mise not found, skipping beads"
+        return 0
+    fi
+
+    # Check if bd is already installed
+    local bd_check=$(run_as_user "$mise_bin exec -- which bd" 2>/dev/null || echo "")
+    if [[ -n "$bd_check" ]] && [[ "$UPDATE_MODE" != "true" ]]; then
+        log_ok "beads already installed"
+        return 0
+    fi
+
+    log_detail "Installing/updating beads via go install"
+    run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- go install github.com/steveyegge/beads/cmd/bd@latest" 2>/dev/null
+    # Verify installation succeeded
+    if run_as_user "$mise_bin exec -- which bd" &>/dev/null; then
+        log_ok "beads (bd)"
+    else
+        log_warn "beads failed"
+    fi
+}
+
 install_cc_switch() {
     log_step "Installing cc-switch-cli..."
 
@@ -464,6 +490,7 @@ main() {
     install_via_mise
     install_agents
     install_pi_agent
+    install_beads
     install_cc_switch
     install_github_cli
 
