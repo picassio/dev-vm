@@ -98,10 +98,28 @@ EOF
     if [[ -f /sys/kernel/mm/transparent_hugepage/enabled ]]; then
         echo never > /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null || true
         echo never > /sys/kernel/mm/transparent_hugepage/defrag 2>/dev/null || true
-        # Make persistent via rc.local or systemd
-        grep -q "transparent_hugepage" /etc/rc.local 2>/dev/null || {
-            echo 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' >> /etc/rc.local 2>/dev/null || true
-        }
+
+        # Make persistent via systemd service
+        local thp_service="/etc/systemd/system/disable-thp.service"
+        if [[ ! -f "$thp_service" ]]; then
+            log_detail "Creating systemd service to disable THP"
+            cat > "$thp_service" << 'THPEOF'
+[Unit]
+Description=Disable Transparent Huge Pages (THP)
+DefaultDependencies=no
+After=sysinit.target local-fs.target
+Before=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled && echo never > /sys/kernel/mm/transparent_hugepage/defrag'
+
+[Install]
+WantedBy=basic.target
+THPEOF
+            systemctl daemon-reload
+            systemctl enable disable-thp.service 2>/dev/null || true
+        fi
     fi
 
     log_ok "System limits configured"
@@ -279,7 +297,7 @@ install_via_mise() {
         run_as_user "$mise_bin self-update" 2>/dev/null || true
     fi
 
-    local languages=("node@lts" "bun@latest" "go@latest" "rust@stable" "python@3.12")
+    local languages=("node@22" "bun@latest" "go@latest" "rust@stable" "python@3.12")
     for tool in "${languages[@]}"; do
         local name="${tool%%@*}"
         log_detail "Installing $name"
@@ -345,6 +363,33 @@ install_agents() {
     [[ -x "$TARGET_HOME/.local/bin/gemini" ]] && log_ok "Gemini CLI"
 
     log_ok "Coding agents installed"
+}
+
+install_pi_agent() {
+    log_step "Installing PI coding agent..."
+
+    local mise_bin="$TARGET_HOME/.local/bin/mise"
+    if [[ ! -x "$mise_bin" ]]; then
+        log_warn "mise not found, skipping PI agent"
+        return 0
+    fi
+
+    # Check if pi is already installed via mise shims
+    local pi_check=$(run_as_user "$mise_bin exec -- which pi" 2>/dev/null || echo "")
+    if [[ -n "$pi_check" ]] && [[ "$UPDATE_MODE" != "true" ]]; then
+        log_ok "PI agent already installed"
+        return 0
+    fi
+
+    log_detail "Installing/updating @mariozechner/pi-coding-agent"
+    # Add mise to PATH to avoid reshim warnings
+    run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm install -g @mariozechner/pi-coding-agent" 2>/dev/null
+    # Verify installation succeeded
+    if run_as_user "$mise_bin exec -- which pi" &>/dev/null; then
+        log_ok "PI agent"
+    else
+        log_warn "PI agent failed"
+    fi
 }
 
 install_cc_switch() {
@@ -418,6 +463,7 @@ main() {
     install_mise
     install_via_mise
     install_agents
+    install_pi_agent
     install_cc_switch
     install_github_cli
 

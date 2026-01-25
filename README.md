@@ -89,7 +89,7 @@ sudo bash setup.sh
 
 | Language | Version | Description |
 |----------|---------|-------------|
-| **Node.js** | LTS (24.x) | JavaScript runtime |
+| **Node.js** | 22.x | JavaScript runtime |
 | **Bun** | Latest | Fast JS runtime & bundler |
 | **Go** | Latest (1.25.x) | Go programming language |
 | **Rust** | Stable | Rust programming language |
@@ -129,6 +129,7 @@ Also installed separately:
 | **Claude Code** | `claude` | Anthropic's AI coding assistant |
 | **Codex CLI** | `codex` | OpenAI's coding assistant |
 | **Gemini CLI** | `gemini` | Google's AI assistant |
+| **PI Agent** | `pi` | Terminal coding agent with multi-model support |
 | **cc-switch** | `cc-switch` | Multi-agent config manager (Claude/Codex/Gemini) |
 
 ### Phase 8: GitHub CLI
@@ -237,6 +238,12 @@ codex --help
 gemini                    # Start interactive mode
 gemini "help me debug"
 gemini --help
+
+# PI Agent (Terminal coding agent)
+pi                        # Start interactive mode
+pi "explain this code"
+pi --model claude-sonnet  # Use specific model
+pi --help
 
 # cc-switch (Multi-agent manager)
 cc-switch                 # Interactive TUI
