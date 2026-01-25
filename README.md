@@ -6,10 +6,10 @@ A standalone script to set up a complete development environment on Ubuntu VMs w
 
 ```bash
 # One-liner (recommended)
-curl -fsSL https://raw.githubusercontent.com/<your-repo>/setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/picassio/dev-vm/main/setup.sh | sudo bash
 
 # Or download and run
-wget https://raw.githubusercontent.com/<your-repo>/setup.sh
+wget https://raw.githubusercontent.com/picassio/dev-vm/main/setup.sh
 sudo bash setup.sh
 ```
 
