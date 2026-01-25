@@ -124,6 +124,9 @@ POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
 # PATH for local binaries
 export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
 
+# mise (activates shims for node, bun, zoxide, fzf, etc.)
+eval "$($HOME/.local/bin/mise activate zsh)"
+
 # zoxide (smart cd)
 eval "$(zoxide init zsh)"
 
@@ -173,7 +176,7 @@ install_mise() {
 # PATH for local binaries
 export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
 
-# mise
+# mise (activates shims for node, bun, zoxide, fzf, etc.)
 eval "$($HOME/.local/bin/mise activate bash)"
 
 # zoxide (smart cd)
@@ -187,11 +190,9 @@ eval "$(direnv hook bash)"
 EOF
     }
 
+    # mise in zsh is now added in setup_shell() with proper ordering
+    # keeping this check for backwards compatibility on existing installs
     local zshrc="$TARGET_HOME/.zshrc"
-    grep -q 'mise activate zsh' "$zshrc" 2>/dev/null || {
-        log_detail "Registering mise in zsh"
-        run_as_user "echo -e '\n# mise\neval \"\$(\$HOME/.local/bin/mise activate zsh)\"' >> $zshrc"
-    }
 
     run_as_user "$mise_bin settings set experimental true" 2>/dev/null || true
     run_as_user "$mise_bin trust --all" 2>/dev/null || true
