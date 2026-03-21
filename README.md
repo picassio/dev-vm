@@ -15,7 +15,7 @@ sudo bash setup.sh
 
 ## Requirements
 
-- **OS:** Ubuntu 22.04+ (tested on 25.10)
+- **OS:** Ubuntu 22.04+ (tested on 25.10), including WSL2
 - **Arch:** x86_64 (AMD64) or ARM64
 - **RAM:** 2GB minimum, 4GB recommended
 - **Disk:** 10GB free space
@@ -27,7 +27,7 @@ sudo bash setup.sh
 
 | Component | Description |
 |-----------|-------------|
-| User `ubuntu` | Created if not exists |
+| Target user | Auto-detected via `SUDO_USER`, falls back to `ubuntu` |
 | Passwordless sudo | `ubuntu ALL=(ALL) NOPASSWD:ALL` |
 | Docker group | User added to docker group |
 | `/data/projects` | Workspace directory |
