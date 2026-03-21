@@ -435,7 +435,7 @@ install_cc_switch() {
     [[ "$arch" == "aarch64" ]] && variant="linux-arm64-musl"
 
     # Get latest release
-    local latest_url=$(curl -sL https://api.github.com/repos/SaladDay/cc-switch-cli/releases/latest | grep "browser_download_url.*${variant}.tar.gz" | cut -d '"' -f 4)
+    local latest_url=$(curl -sL https://api.github.com/repos/SaladDay/cc-switch-cli/releases/latest | grep "browser_download_url.*${variant}.tar.gz" | head -1 | cut -d '"' -f 4)
 
     if [[ -n "$latest_url" ]]; then
         curl -fsSL "$latest_url" -o "$tmp_dir/cc-switch.tar.gz"
