@@ -163,8 +163,10 @@ This will:
 
 ### Custom User
 
+The script auto-detects the correct user (via `SUDO_USER` or by finding the first regular user in `/etc/passwd`). This works on both VMs and WSL2. To override:
+
 ```bash
-# Install for a different user
+# Install for a specific user
 TARGET_USER=myuser sudo bash setup.sh
 ```
 

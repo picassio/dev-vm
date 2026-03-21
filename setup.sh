@@ -12,8 +12,6 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-TARGET_USER="${TARGET_USER:-${SUDO_USER:-ubuntu}}"
-TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
 UPDATE_MODE="${UPDATE_MODE:-false}"
 
 # Parse args
@@ -22,6 +20,26 @@ for arg in "$@"; do
         --update) UPDATE_MODE=true ;;
     esac
 done
+
+# Detect target user: explicit > SUDO_USER > first regular user (UID >= 1000) > ubuntu
+detect_user() {
+    # Explicit override
+    [[ -n "${TARGET_USER:-}" ]] && { echo "$TARGET_USER"; return; }
+
+    # SUDO_USER is set by sudo and is reliable when available
+    [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]] && { echo "$SUDO_USER"; return; }
+
+    # Find first non-root, non-nobody user with UID >= 1000 (works on WSL2 where
+    # there is typically exactly one regular user)
+    local detected
+    detected=$(awk -F: '$3 >= 1000 && $1 != "nobody" && $1 != "nogroup" { print $1; exit }' /etc/passwd)
+    [[ -n "$detected" ]] && { echo "$detected"; return; }
+
+    echo "ubuntu"
+}
+
+TARGET_USER="$(detect_user)"
+TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
 
 log_step() { echo -e "${BLUE}[*]${NC} $1"; }
 log_ok() { echo -e "${GREEN}[✓]${NC} $1"; }
@@ -478,6 +496,8 @@ main() {
     echo ""
 
     [[ $EUID -ne 0 ]] && { log_err "Run as root (use sudo)"; exit 1; }
+
+    log_step "Target user: ${TARGET_USER} (home: ${TARGET_HOME})"
 
     local start_time=$(date +%s)
 
