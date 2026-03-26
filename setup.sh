@@ -21,6 +21,14 @@ for arg in "$@"; do
     esac
 done
 
+# Auto-detect previous install: if mise is already present, switch to update mode
+detect_previous_install() {
+    local user_home="${TARGET_HOME:-/home/$(detect_user)}"
+    if [[ -x "$user_home/.local/bin/mise" ]]; then
+        UPDATE_MODE=true
+    fi
+}
+
 # Detect target user: explicit > SUDO_USER > first regular user (UID >= 1000) > ubuntu
 detect_user() {
     # Explicit override
@@ -40,6 +48,9 @@ detect_user() {
 
 TARGET_USER="$(detect_user)"
 TARGET_HOME="${TARGET_HOME:-/home/$TARGET_USER}"
+
+# Auto-switch to update mode if this VM was already provisioned
+detect_previous_install
 
 log_step() { echo -e "${BLUE}[*]${NC} $1"; }
 log_ok() { echo -e "${GREEN}[✓]${NC} $1"; }
@@ -147,6 +158,12 @@ install_base_packages() {
     log_step "Installing base packages..."
 
     apt-get update -qq
+
+    if [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Upgrading existing packages"
+        apt-get upgrade -y 2>/dev/null || true
+    fi
+
     apt-get install -y curl git ca-certificates unzip tar xz-utils build-essential sudo gnupg \
         tmux direnv git-lfs lsof dnsutils strace rsync htop tree ncdu entr mtr pv zsh \
         mysql-client sqlite3 postgresql-client 2>/dev/null
@@ -193,25 +210,37 @@ setup_shell() {
 
     local omz_dir="$TARGET_HOME/.oh-my-zsh"
 
-    [[ ! -d "$omz_dir" ]] && {
+    if [[ ! -d "$omz_dir" ]]; then
         log_detail "Installing Oh My Zsh"
         run_as_user 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
-    }
+    elif [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Updating Oh My Zsh"
+        run_as_user "cd $omz_dir && git pull --rebase --quiet" 2>/dev/null || true
+    fi
 
-    [[ ! -d "$omz_dir/custom/themes/powerlevel10k" ]] && {
+    if [[ ! -d "$omz_dir/custom/themes/powerlevel10k" ]]; then
         log_detail "Installing Powerlevel10k"
         run_as_user "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $omz_dir/custom/themes/powerlevel10k"
-    }
+    elif [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Updating Powerlevel10k"
+        run_as_user "cd $omz_dir/custom/themes/powerlevel10k && git pull --rebase --quiet" 2>/dev/null || true
+    fi
 
     local plugins_dir="$omz_dir/custom/plugins"
-    [[ ! -d "$plugins_dir/zsh-autosuggestions" ]] && {
+    if [[ ! -d "$plugins_dir/zsh-autosuggestions" ]]; then
         log_detail "Installing zsh-autosuggestions"
         run_as_user "git clone https://github.com/zsh-users/zsh-autosuggestions $plugins_dir/zsh-autosuggestions"
-    }
-    [[ ! -d "$plugins_dir/zsh-syntax-highlighting" ]] && {
+    elif [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Updating zsh-autosuggestions"
+        run_as_user "cd $plugins_dir/zsh-autosuggestions && git pull --rebase --quiet" 2>/dev/null || true
+    fi
+    if [[ ! -d "$plugins_dir/zsh-syntax-highlighting" ]]; then
         log_detail "Installing zsh-syntax-highlighting"
         run_as_user "git clone https://github.com/zsh-users/zsh-syntax-highlighting $plugins_dir/zsh-syntax-highlighting"
-    }
+    elif [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Updating zsh-syntax-highlighting"
+        run_as_user "cd $plugins_dir/zsh-syntax-highlighting && git pull --rebase --quiet" 2>/dev/null || true
+    fi
 
     local zshrc="$TARGET_HOME/.zshrc"
     if [[ -f "$zshrc" ]]; then
@@ -337,10 +366,10 @@ install_via_mise() {
         run_as_user "$mise_bin use --global $tool" 2>/dev/null && log_ok "$name" || log_detail "$name not available"
     done
 
-    [[ ! -x "$TARGET_HOME/.local/bin/uv" ]] && {
-        log_detail "Installing uv"
+    if [[ ! -x "$TARGET_HOME/.local/bin/uv" ]] || [[ "$UPDATE_MODE" == "true" ]]; then
+        log_detail "Installing/updating uv"
         run_as_user 'curl -LsSf https://astral.sh/uv/install.sh | sh' && log_ok "uv"
-    }
+    fi
 
     log_ok "Languages and tools installed"
 }
@@ -471,7 +500,7 @@ install_cc_switch() {
 install_github_cli() {
     log_step "Installing GitHub CLI..."
 
-    if command -v gh &>/dev/null; then
+    if command -v gh &>/dev/null && [[ "$UPDATE_MODE" != "true" ]]; then
         log_ok "GitHub CLI already installed"
         return 0
     fi
@@ -488,7 +517,7 @@ main() {
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
     if [[ "$UPDATE_MODE" == "true" ]]; then
-    echo "║  VM Setup - UPDATE MODE                                       ║"
+    echo "║  VM Setup - UPDATE MODE (rerun detected, upgrading all)       ║"
     else
     echo "║  VM Setup - mise, languages, tools, coding agents             ║"
     fi
