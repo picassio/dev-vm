@@ -30,6 +30,7 @@ sudo bash setup.sh
 | Target user | Auto-detected via `SUDO_USER`, falls back to `ubuntu` |
 | Passwordless sudo | `ubuntu ALL=(ALL) NOPASSWD:ALL` |
 | Docker group | User added to docker group |
+| Automatic apt upgrades | Disabled to prevent template clones from upgrading/rebooting unexpectedly |
 | `/data/projects` | Workspace directory |
 | `~/.local/bin` | User binary directory |
 

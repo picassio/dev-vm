@@ -85,6 +85,29 @@ setup_system() {
     log_ok "System setup complete"
 }
 
+disable_automatic_updates() {
+    log_step "Disabling automatic apt upgrades and reboots..."
+
+    # Templates should not start package upgrades or reboot shortly after a clone
+    # boots. Operators can still update explicitly by rerunning this setup script.
+    cat > /etc/apt/apt.conf.d/99-dev-vm-disable-auto-upgrades << 'EOF'
+APT::Periodic::Enable "0";
+APT::Periodic::Update-Package-Lists "0";
+APT::Periodic::Download-Upgradeable-Packages "0";
+APT::Periodic::AutocleanInterval "0";
+APT::Periodic::Unattended-Upgrade "0";
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+EOF
+
+    systemctl disable --now unattended-upgrades.service 2>/dev/null || true
+    systemctl disable --now apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+    systemctl disable --now apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+    systemctl mask apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+
+    log_ok "Automatic apt upgrades disabled"
+}
+
 setup_system_limits() {
     log_step "Configuring system limits..."
 
@@ -600,6 +623,7 @@ main() {
 
     setup_system
     setup_system_limits
+    disable_automatic_updates
     install_base_packages
     setup_shell
     setup_git
