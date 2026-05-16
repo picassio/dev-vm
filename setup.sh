@@ -414,7 +414,7 @@ install_via_mise() {
         run_as_user "$mise_bin self-update" 2>/dev/null || true
     fi
 
-    local languages=("node@22" "bun@latest" "go@latest" "rust@stable" "python@3.12")
+    local languages=("node@22" "bun@latest" "go@latest" "rust@stable" "python@3.12" "dotnet@latest" "powershell@latest")
     for tool in "${languages[@]}"; do
         local name="${tool%%@*}"
         log_detail "Installing $name"
@@ -440,6 +440,8 @@ install_via_mise() {
         log_detail "Installing/updating uv"
         run_as_user 'curl -LsSf https://astral.sh/uv/install.sh | sh' && log_ok "uv"
     fi
+
+    run_as_user "$mise_bin reshim" 2>/dev/null || true
 
     log_ok "Languages and tools installed"
 }

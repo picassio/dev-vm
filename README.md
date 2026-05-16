@@ -95,6 +95,8 @@ sudo bash setup.sh
 | **Go** | Latest (1.25.x) | Go programming language |
 | **Rust** | Stable | Rust programming language |
 | **Python** | 3.12 | Python interpreter |
+| **.NET SDK** | Latest stable | .NET SDK and runtime (`dotnet`) |
+| **PowerShell Core** | Latest stable | Cross-platform PowerShell (`pwsh`) |
 
 ### Phase 6: CLI Tools (via mise)
 
@@ -157,7 +159,7 @@ sudo bash setup.sh --update
 
 This will:
 - Update mise itself
-- Upgrade all mise-managed tools (node, bun, go, rust, python, CLI tools)
+- Upgrade all mise-managed tools (node, bun, go, rust, python, dotnet, powershell, CLI tools)
 - Update coding agents (claude, codex, gemini)
 - Update cc-switch-cli
 
@@ -192,6 +194,8 @@ bun --version
 go version
 rustc --version
 python --version
+dotnet --version
+pwsh --version
 
 # Test CLI tools
 rg --version
@@ -209,7 +213,7 @@ gemini --version
 
 Interactive SSH sessions are ready after login because zsh loads mise from `~/.zshrc`.
 
-One-off SSH commands like `ssh vm 'pi --version'` do not load `~/.zshrc`, so the script also adds mise shims to `~/.zshenv`, the top of `~/.bashrc`, and `~/.profile`. This makes mise-managed commands such as `pi`, `node`, and `npm` available for non-interactive SSH commands in the normal zsh/bash cases.
+One-off SSH commands like `ssh vm 'pi --version'` do not load `~/.zshrc`, so the script also adds mise shims to `~/.zshenv`, the top of `~/.bashrc`, and `~/.profile`. This makes mise-managed commands such as `pi`, `node`, `npm`, `dotnet`, and `pwsh` available for non-interactive SSH commands in the normal zsh/bash cases.
 
 For maximum portability, especially if you override the shell, use mise directly:
 
@@ -234,6 +238,8 @@ mise upgrade
 
 # See available versions
 mise ls-remote node
+mise ls-remote dotnet
+mise ls-remote powershell
 ```
 
 ### Using Coding Agents
