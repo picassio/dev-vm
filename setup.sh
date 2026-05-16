@@ -272,6 +272,53 @@ eval "$(direnv hook zsh)"
 EOF
     fi
 
+    local command_path_block
+    command_path_block=$(cat << 'EOF'
+# dev-vm command path for SSH one-off commands
+# Keep this block lightweight: it may run for non-interactive shells such as
+# `ssh host 'pi --version'`, where interactive rc files are not fully loaded.
+_dev_vm_prepend_path() {
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) PATH="$1:$PATH" ;;
+  esac
+}
+_dev_vm_prepend_path "$HOME/.bun/bin"
+_dev_vm_prepend_path "$HOME/.local/bin"
+_dev_vm_prepend_path "$HOME/.local/share/mise/shims"
+export PATH
+unset -f _dev_vm_prepend_path
+EOF
+)
+
+    local zshenv="$TARGET_HOME/.zshenv"
+    if ! grep -q "dev-vm command path" "$zshenv" 2>/dev/null; then
+        log_detail "Adding mise shims to zshenv for non-interactive SSH commands"
+        printf '\n%s\n' "$command_path_block" >> "$zshenv"
+        chown "$TARGET_USER:$TARGET_USER" "$zshenv"
+    fi
+
+    # Ubuntu's default ~/.bashrc returns early for non-interactive shells. Put
+    # the lightweight PATH block at the top so bash-based SSH one-offs can still
+    # find mise shims if chsh was skipped or overridden.
+    local bashrc="$TARGET_HOME/.bashrc"
+    if ! grep -q "dev-vm command path" "$bashrc" 2>/dev/null; then
+        log_detail "Adding mise shims to bashrc before non-interactive guard"
+        local tmp_bashrc
+        tmp_bashrc=$(mktemp)
+        printf '%s\n\n' "$command_path_block" > "$tmp_bashrc"
+        [[ -f "$bashrc" ]] && cat "$bashrc" >> "$tmp_bashrc"
+        install -o "$TARGET_USER" -g "$TARGET_USER" -m 644 "$tmp_bashrc" "$bashrc"
+        rm -f "$tmp_bashrc"
+    fi
+
+    local profile="$TARGET_HOME/.profile"
+    if ! grep -q "dev-vm command path" "$profile" 2>/dev/null; then
+        log_detail "Adding mise shims to profile for login shells"
+        printf '\n%s\n' "$command_path_block" >> "$profile"
+        chown "$TARGET_USER:$TARGET_USER" "$profile"
+    fi
+
     chsh -s /bin/zsh "$TARGET_USER" 2>/dev/null || true
     log_ok "Shell setup complete"
 }
@@ -421,16 +468,37 @@ install_pi_agent() {
         return 0
     fi
 
+    local old_pkg="@mariozechner/pi-coding-agent"
+    local new_pkg="@earendil-works/pi-coding-agent"
+
+    # Pi moved from the deprecated @mariozechner npm scope to @earendil-works.
+    # If the old global package is present, remove it before installing the new
+    # one so the shared `pi` bin shim is recreated from the current package.
+    local old_pkg_installed=false
+    if run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm ls -g --depth=0 $old_pkg >/dev/null 2>&1"; then
+        old_pkg_installed=true
+    fi
+
     # Check if pi is already installed via mise shims
     local pi_check=$(run_as_user "$mise_bin exec -- which pi" 2>/dev/null || echo "")
-    if [[ -n "$pi_check" ]] && [[ "$UPDATE_MODE" != "true" ]]; then
+    if [[ -n "$pi_check" ]] && [[ "$UPDATE_MODE" != "true" ]] && [[ "$old_pkg_installed" != "true" ]]; then
         log_ok "PI agent already installed"
         return 0
     fi
 
-    log_detail "Installing/updating @mariozechner/pi-coding-agent"
+    if [[ "$old_pkg_installed" == "true" ]]; then
+        log_detail "Removing deprecated $old_pkg"
+        run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm uninstall -g $old_pkg" 2>/dev/null || true
+    fi
+
+    log_detail "Installing/updating $new_pkg"
     # Add mise to PATH to avoid reshim warnings
-    run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm install -g @mariozechner/pi-coding-agent" 2>/dev/null
+    if ! run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm install -g $new_pkg" 2>/dev/null; then
+        log_warn "PI agent failed"
+        return 0
+    fi
+    run_as_user "$mise_bin reshim" 2>/dev/null || true
+
     # Verify installation succeeded
     if run_as_user "$mise_bin exec -- which pi" &>/dev/null; then
         log_ok "PI agent"
