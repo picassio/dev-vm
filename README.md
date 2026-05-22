@@ -29,7 +29,7 @@ sudo bash setup.sh
 |-----------|-------------|
 | Target user | Auto-detected via `SUDO_USER`, falls back to `ubuntu` |
 | Passwordless sudo | `ubuntu ALL=(ALL) NOPASSWD:ALL` |
-| Docker group | User added to docker group |
+| Docker group | User added to docker group after Docker is installed |
 | Automatic apt upgrades | Disabled to prevent template clones from upgrading/rebooting unexpectedly |
 | `/data/projects` | Workspace directory |
 | `~/.local/bin` | User binary directory |
@@ -379,14 +379,20 @@ sudo chown -R $USER:$USER ~/.local ~/.config
 
 ### Docker not working
 
+The setup script adds the target user to the `docker` group after Docker is installed. Existing login sessions may need to reconnect before group membership is visible.
+
 ```bash
 # Check group membership
 groups
 
-# Re-login to apply docker group
-su - $USER
+# Verify the Docker socket is group-writable by docker
+ls -l /var/run/docker.sock
 
-# Or use sudo
+# Re-login to apply docker group membership
+exit
+ssh <host>
+
+# Or use sudo until the next login
 sudo docker ps
 ```
 

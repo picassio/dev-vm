@@ -62,6 +62,28 @@ run_as_user() {
     sudo -u "$TARGET_USER" -H bash -c "$*"
 }
 
+ensure_docker_access() {
+    if ! command -v docker &>/dev/null; then
+        return 0
+    fi
+
+    log_detail "Ensuring $TARGET_USER can run Docker"
+
+    # Docker packages normally create this group, but create it explicitly for
+    # minimal images or partially installed systems.
+    getent group docker &>/dev/null || groupadd --system docker
+    usermod -aG docker "$TARGET_USER"
+
+    # Make Docker available after boot and normalize the socket permissions for
+    # the current boot. Existing login sessions may still need to reconnect for
+    # supplementary group membership to refresh.
+    systemctl enable --now docker 2>/dev/null || true
+    if [[ -S /var/run/docker.sock ]]; then
+        chgrp docker /var/run/docker.sock 2>/dev/null || true
+        chmod 660 /var/run/docker.sock 2>/dev/null || true
+    fi
+}
+
 setup_system() {
     log_step "Setting up system..."
 
@@ -76,6 +98,8 @@ setup_system() {
         chmod 440 "/etc/sudoers.d/$TARGET_USER"
     fi
 
+    # Docker may not be installed yet; install_base_packages calls
+    # ensure_docker_access again after installing Docker.
     getent group docker &>/dev/null && usermod -aG docker "$TARGET_USER" 2>/dev/null || true
 
     mkdir -p /data/projects "$TARGET_HOME/.local/bin"
@@ -224,6 +248,8 @@ install_base_packages() {
 DOCKEREOF
         systemctl restart docker 2>/dev/null || true
     fi
+
+    ensure_docker_access
 
     log_ok "Base packages installed"
 }
