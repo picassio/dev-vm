@@ -542,9 +542,9 @@ install_pi_agent() {
         run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm uninstall -g $old_pkg" 2>/dev/null || true
     fi
 
-    log_detail "Installing/updating $new_pkg"
+    log_detail "Installing/updating ${new_pkg}@latest"
     # Add mise to PATH to avoid reshim warnings
-    if ! run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm install -g $new_pkg" 2>/dev/null; then
+    if ! run_as_user "export PATH=$TARGET_HOME/.local/bin:\$PATH && $mise_bin exec -- npm install -g ${new_pkg}@latest" 2>/dev/null; then
         log_warn "PI agent failed"
         return 0
     fi
