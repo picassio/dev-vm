@@ -42,6 +42,8 @@ sudo bash setup.sh
 | `git` | Version control |
 | `ca-certificates` | SSL certificates |
 | `unzip`, `tar`, `xz-utils` | Archive utilities |
+| `xfsprogs` | XFS filesystem utilities and online growth support |
+| `qemu-guest-agent` | Proxmox guest management and telemetry agent |
 | `build-essential` | GCC, make, etc. |
 | `gnupg` | GPG encryption |
 | `tmux` | Terminal multiplexer |
@@ -127,6 +129,8 @@ Also installed separately:
 
 ### Phase 7: Coding Agents
 
+Fresh installs and `--update` runs resolve the current stable/latest release of every coding application. Node.js remains pinned to the supported 22.x major and Python to 3.12 for development compatibility; these runtime pins are not changed automatically to a new major.
+
 | Agent | Command | Description |
 |-------|---------|-------------|
 | **Claude Code** | `claude` | Anthropic's AI coding assistant |
@@ -158,10 +162,10 @@ sudo bash setup.sh --update
 ```
 
 This will:
-- Update mise itself
-- Upgrade all mise-managed tools (node, bun, go, rust, python, dotnet, powershell, CLI tools)
-- Update coding agents (claude, codex, gemini)
-- Update cc-switch-cli
+- Update mise itself non-interactively
+- Upgrade all mise-managed tools within their configured version policy, including the Node 22 and Python 3.12 compatibility pins
+- Update coding agents (Claude Code, Codex, Gemini, and Pi) to their latest release
+- Update cc-switch-cli to its latest release
 
 ### Custom User
 

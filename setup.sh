@@ -212,8 +212,8 @@ install_base_packages() {
     fi
 
     apt-get install -y curl git ca-certificates unzip tar xz-utils build-essential sudo gnupg \
-        tmux direnv git-lfs lsof dnsutils strace rsync htop tree ncdu entr mtr pv zsh \
-        mysql-client sqlite3 postgresql-client 2>/dev/null
+        tmux direnv git-lfs lsof dnsutils strace rsync htop tree ncdu entr mtr pv zsh xfsprogs \
+        qemu-guest-agent mysql-client sqlite3 postgresql-client 2>/dev/null
 
     if ! command -v docker &>/dev/null; then
         log_detail "Installing Docker"
@@ -437,7 +437,7 @@ install_via_mise() {
     # Update mise itself if in update mode
     if [[ "$UPDATE_MODE" == "true" ]]; then
         log_detail "Updating mise"
-        run_as_user "$mise_bin self-update" 2>/dev/null || true
+        run_as_user "$mise_bin self-update --yes" 2>/dev/null || true
     fi
 
     local languages=("node@22" "bun@latest" "go@latest" "rust@stable" "python@3.12" "dotnet@latest" "powershell@latest")
@@ -473,7 +473,10 @@ install_via_mise() {
 }
 
 install_agents() {
-    log_step "Installing coding agents..."
+    # Fresh installs and --update runs resolve the current stable release of
+    # every coding application. Language compatibility majors remain pinned in
+    # install_via_mise().
+    log_step "Installing latest coding agents..."
 
     local bun_bin="$TARGET_HOME/.local/share/mise/installs/bun/latest/bin/bun"
     [[ ! -x "$bun_bin" ]] && bun_bin=$(run_as_user "which bun" 2>/dev/null || echo "")
@@ -511,7 +514,7 @@ install_agents() {
 }
 
 install_pi_agent() {
-    log_step "Installing PI coding agent..."
+    log_step "Installing latest PI coding agent..."
 
     local mise_bin="$TARGET_HOME/.local/bin/mise"
     if [[ ! -x "$mise_bin" ]]; then
